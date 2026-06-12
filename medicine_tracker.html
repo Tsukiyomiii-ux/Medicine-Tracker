@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Medicine Tracker</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --bg-secondary: #f5f5f3;
+    --text: #1a1a18;
+    --text-secondary: #6b6b67;
+    --border: rgba(0,0,0,0.12);
+    --border-hover: rgba(0,0,0,0.25);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c;
+      --bg-secondary: #2a2a28;
+      --text: #f0f0ee;
+      --text-secondary: #9a9a96;
+      --border: rgba(255,255,255,0.12);
+      --border-hover: rgba(255,255,255,0.25);
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 1.5rem 1rem 3rem; }
+  .app { max-width: 680px; margin: 0 auto; }
+  .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+  .app-title { font-size: 16px; font-weight: 500; color: var(--text); }
+  .app-title i { font-size: 16px; vertical-align: -2px; margin-right: 6px; }
+  .reset-info { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .add-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 7px 14px; border-radius: var(--radius-md); border: 0.5px solid var(--border-hover); background: transparent; color: var(--text-secondary); cursor: pointer; transition: background 0.15s; }
+  .add-btn:hover { background: var(--bg-secondary); color: var(--text); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .med-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; }
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.75rem; }
+  .card-name { font-size: 15px; font-weight: 500; color: var(--text); background: transparent; border: none; border-bottom: 1.5px solid transparent; width: 100%; outline: none; padding: 2px 0; cursor: pointer; }
+  .card-name:focus { border-bottom-color: var(--border-hover); cursor: text; }
+  .card-color-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; margin-left: 10px; }
+  .count-row { display: flex; align-items: baseline; gap: 6px; margin: 0.5rem 0 0.25rem; }
+  .count-num { font-size: 48px; font-weight: 500; color: var(--text); line-height: 1; transition: transform 0.15s; }
+  .count-unit { font-size: 13px; color: var(--text-secondary); }
+  .timer-row { font-size: 12px; color: var(--text-secondary); margin-bottom: 1rem; font-family: 'Courier New', monospace; }
+  .card-actions { display: flex; gap: 8px; align-items: center; }
+  .take-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; padding: 8px 16px; border-radius: var(--radius-md); border: 0.5px solid var(--border-hover); background: transparent; color: var(--text); cursor: pointer; flex: 1; justify-content: center; transition: background 0.15s; }
+  .take-btn:hover { background: var(--bg-secondary); }
+  .take-btn:active { transform: scale(0.97); }
+  .icon-btn { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-md); border: 0.5px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 15px; transition: background 0.15s; }
+  .icon-btn:hover { background: var(--bg-secondary); color: var(--text); }
+  .history-row { margin-top: 0.75rem; border-top: 0.5px solid var(--border); padding-top: 0.75rem; }
+  .history-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .history-bars { display: flex; gap: 4px; align-items: flex-end; height: 36px; }
+  .h-bar-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+  .h-bar { width: 100%; border-radius: 2px; min-height: 3px; }
+  .h-day { font-size: 10px; color: var(--text-secondary); }
+  .empty-state { text-align: center; padding: 2rem 1rem; color: var(--text-secondary); font-size: 14px; grid-column: 1/-1; }
+  .empty-state i { font-size: 32px; display: block; margin: 0 auto 0.5rem; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="app-header">
+    <div>
+      <p class="app-title"><i class="ti ti-pill"></i>Medicine tracker</p>
+      <p class="reset-info" id="globalResetInfo"></p>
+    </div>
+    <button class="add-btn" onclick="addMedicine()"><i class="ti ti-plus"></i> Add medicine</button>
+  </div>
+  <div class="cards" id="cardsContainer"></div>
+</div>
+<script>
+const STORAGE_KEY = 'med_multi_6am_v1';
+const COLORS = [
+  { dot: '#378ADD', bar: '#85B7EB' },
+  { dot: '#1D9E75', bar: '#5DCAA5' },
+  { dot: '#D85A30', bar: '#F0997B' },
+  { dot: '#7F77DD', bar: '#AFA9EC' },
+  { dot: '#BA7517', bar: '#EF9F27' },
+  { dot: '#D4537E', bar: '#ED93B1' },
+];
+
+function next6AM() {
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(6, 0, 0, 0);
+  if (now >= next) next.setDate(next.getDate() + 1);
+  return next.getTime();
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return {
+    medicines: [
+      { id: 1, name: 'Amoxicillin', count: 0, resetAt: next6AM(), history: [], colorIdx: 0 },
+      { id: 2, name: 'Mefenamic acid', count: 0, resetAt: next6AM(), history: [], colorIdx: 1 },
+    ],
+    nextId: 3
+  };
+}
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+let state = loadState();
+
+function checkReset(med) {
+  if (Date.now() >= med.resetAt) {
+    if (med.count > 0) {
+      if (!med.history) med.history = [];
+      med.history.push({ date: med.resetAt - 86400000, count: med.count });
+      if (med.history.length > 7) med.history.shift();
+    }
+    med.count = 0;
+    med.resetAt = next6AM();
+  }
+}
+
+function addDose(id) {
+  const med = state.medicines.find(m => m.id === id);
+  if (!med) return;
+  checkReset(med);
+  med.count += 1;
+  saveState();
+  const el = document.getElementById('count-' + id);
+  if (el) { el.style.transform = 'scale(1.2)'; setTimeout(() => el.style.transform = '', 150); }
+  renderAll();
+}
+
+function resetMed(id) {
+  const med = state.medicines.find(m => m.id === id);
+  if (!med) return;
+  if (med.count > 0) {
+    if (!med.history) med.history = [];
+    med.history.push({ date: Date.now(), count: med.count });
+    if (med.history.length > 7) med.history.shift();
+  }
+  med.count = 0;
+  med.resetAt = next6AM();
+  saveState();
+  renderAll();
+}
+
+function deleteMed(id) {
+  if (!confirm('Remove this medicine?')) return;
+  state.medicines = state.medicines.filter(m => m.id !== id);
+  saveState();
+  renderAll();
+}
+
+function addMedicine() {
+  const colorIdx = state.medicines.length % COLORS.length;
+  state.medicines.push({ id: state.nextId++, name: 'New medicine', count: 0, resetAt: next6AM(), history: [], colorIdx });
+  saveState();
+  renderAll();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.card-name');
+    const last = inputs[inputs.length - 1];
+    if (last) { last.focus(); last.select(); }
+  }, 50);
+}
+
+function updateName(id, val) {
+  const med = state.medicines.find(m => m.id === id);
+  if (med) { med.name = val; saveState(); }
+}
+
+function fmtTimer(resetAt) {
+  const diff = Math.max(0, resetAt - Date.now());
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  return `resets at 6:00 AM — ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} left`;
+}
+
+function fmtGlobalReset() {
+  const r = next6AM();
+  const d = new Date(r);
+  const diff = Math.max(0, r - Date.now());
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const dayLabel = d.getDate() === new Date().getDate() ? 'today' : 'tomorrow';
+  return `All counters reset at 6:00 AM ${dayLabel} (${h}h ${m}m)`;
+}
+
+function buildCard(med) {
+  const h = med.history || [];
+  const maxCount = Math.max(1, ...h.map(e => e.count), med.count);
+  const days = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const barsHtml = h.slice(-7).map(e => {
+    const d = new Date(e.date);
+    const pct = Math.round((e.count / maxCount) * 100);
+    return `<div class="h-bar-wrap"><div class="h-bar" style="height:${pct}%;background:${COLORS[med.colorIdx % COLORS.length].bar}"></div><div class="h-day">${days[d.getDay()]}</div></div>`;
+  }).join('');
+  const histSection = h.length > 0 ? `<div class="history-row"><div class="history-label">past doses</div><div class="history-bars">${barsHtml}</div></div>` : '';
+  const dot = COLORS[med.colorIdx % COLORS.length].dot;
+  return `<div class="med-card" id="card-${med.id}">
+    <div class="card-top">
+      <input class="card-name" id="name-${med.id}" type="text" value="${med.name.replace(/"/g,'&quot;')}" maxlength="30" />
+      <div class="card-color-dot" style="background:${dot}"></div>
+    </div>
+    <div class="count-row">
+      <span class="count-num" id="count-${med.id}">${med.count}</span>
+      <span class="count-unit">dose${med.count === 1 ? '' : 's'}</span>
+    </div>
+    <div class="timer-row" id="timer-${med.id}">${fmtTimer(med.resetAt)}</div>
+    <div class="card-actions">
+      <button class="take-btn" onclick="addDose(${med.id})"><i class="ti ti-plus"></i> Take dose</button>
+      <button class="icon-btn" onclick="resetMed(${med.id})" title="Reset count"><i class="ti ti-refresh"></i></button>
+      <button class="icon-btn" onclick="deleteMed(${med.id})" title="Delete medicine"><i class="ti ti-trash"></i></button>
+    </div>
+    ${histSection}
+  </div>`;
+}
+
+function renderAll() {
+  const container = document.getElementById('cardsContainer');
+  const globalInfo = document.getElementById('globalResetInfo');
+  if (globalInfo) globalInfo.textContent = fmtGlobalReset();
+
+  if (state.medicines.length === 0) {
+    container.innerHTML = '<div class="empty-state"><i class="ti ti-pill"></i>No medicines yet.<br>Click "Add medicine" to get started.</div>';
+    return;
+  }
+
+  const existingIds = new Set(Array.from(container.children).map(c => parseInt(c.id && c.id.replace('card-', ''))).filter(Boolean));
+  const currentIds = new Set(state.medicines.map(m => m.id));
+
+  existingIds.forEach(id => { if (!currentIds.has(id)) { const el = document.getElementById('card-' + id); if (el) el.remove(); } });
+
+  state.medicines.forEach(med => {
+    checkReset(med);
+    const existing = document.getElementById('card-' + med.id);
+    if (existing) {
+      const countEl = document.getElementById('count-' + med.id);
+      const timerEl = document.getElementById('timer-' + med.id);
+      if (countEl) { countEl.textContent = med.count; }
+      if (timerEl) timerEl.textContent = fmtTimer(med.resetAt);
+      const unit = existing.querySelector('.count-unit');
+      if (unit) unit.textContent = 'dose' + (med.count === 1 ? '' : 's');
+    } else {
+      const div = document.createElement('div');
+      div.innerHTML = buildCard(med);
+      const card = div.firstChild;
+      container.appendChild(card);
+      const nameEl = document.getElementById('name-' + med.id);
+      if (nameEl) {
+        nameEl.addEventListener('change', () => updateName(med.id, nameEl.value));
+        nameEl.addEventListener('blur', () => updateName(med.id, nameEl.value));
+      }
+    }
+  });
+}
+
+renderAll();
+setInterval(() => {
+  state.medicines.forEach(med => {
+    checkReset(med);
+    const timerEl = document.getElementById('timer-' + med.id);
+    if (timerEl) timerEl.textContent = fmtTimer(med.resetAt);
+  });
+  const globalInfo = document.getElementById('globalResetInfo');
+  if (globalInfo) globalInfo.textContent = fmtGlobalReset();
+}, 1000);
+</script>
+</body>
+</html>
